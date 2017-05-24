@@ -27,7 +27,6 @@ help describes below:
 
     Options:
         -q      Be quiet
-        -d      Show diff if file exists
         -s <path> Set dotfile source path (default: ~/.dotfiles)
         -r      Remove existing symlinks if broken (sync)
         -f      Force overwriting existing files, implies -r (sync, add)
