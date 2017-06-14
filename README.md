@@ -1,6 +1,8 @@
 # dm: Dotfile Manager
 
-A single-file "dotfile" manager written in POSIX shell.
+A single-file "dotfile" manager written in POSIX shell. It creates and
+synchronises symlinks in your home directory to a central dotfile
+source.
 
 ## Installation
 
