@@ -124,7 +124,8 @@ add() {
     if [ -h $dest ]; then
         dest=$(realpath "$dest")
     fi
-    return mv $dest $src && create_link $src $dest
+    mv $dest $src && create_link $src $dest
+    return $?
 }
 
 # Updates a link from the dotfiles src to the home directory
@@ -239,7 +240,7 @@ main() {
             scan
             ;;
         add)
-            if [ -n $1 ]; then
+            if [ -z "$2" ]; then
                 echo "Missing required path"
                 return 1
             fi
