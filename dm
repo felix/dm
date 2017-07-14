@@ -91,6 +91,14 @@ canonicalize_path() {
     fi
 }
 
+ensure_path() {
+    local directory=$($dirname $1)
+    if [ ! -d $directory ]; then
+        [ -z $QUIET] && printf "creating path %s\n" $directory
+        [ -z $DRYRUN ] && mkdir -p $($dirname $1) > /dev/null
+    fi
+}
+
 scan() {
     # Each file and link in DOTFILES, excluding VCS
     # TODO enable configurable excludes
@@ -107,6 +115,7 @@ add() {
         return
     fi
     local relative=${file#${DOTFILES}/}
+    # Note these are in 'sync' order
     local dest=$HOME/$relative
     local src=$DOTFILES/$relative
 
@@ -124,6 +133,7 @@ add() {
     if [ -h $dest ]; then
         dest=$(realpath "$dest")
     fi
+    ensure_path $src
     mv $dest $src && create_link $src $dest
     return $?
 }
@@ -184,11 +194,7 @@ process() {
 
     else
         # missing, create path maybe
-        local directory=$($dirname $dest)
-        if [ ! -d $directory ]; then
-            [ -z $QUIET] && printf "creating path %s\n" $directory
-            [ -z $DRYRUN ] && mkdir -p $($dirname $dest) > /dev/null
-        fi
+        ensure_path $dest
     fi
 
     case $ACTION in
