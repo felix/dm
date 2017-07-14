@@ -194,7 +194,7 @@ process() {
 
     else
         # missing, create path maybe
-        ensure_path $dest
+        [ $ACTION = "sync" ] && ensure_path $dest
     fi
 
     case $ACTION in
