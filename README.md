@@ -28,13 +28,13 @@ Each command has optional flags which modify the default behaviour as the usage
 help describes below:
 
     Options:
-        -q      Be quiet
+        -q        Be quiet
         -s <path> Set dotfile source path (default: ~/.dotfiles)
-        -r      Remove existing symlinks if broken (sync)
-        -f      Force overwriting existing files, implies -r (sync, add)
-        -b      Backup existing files (sync)
-        -n      Dry run, don't actually do anything (sync, add)
-        -h      This help
+        -r        Remove existing symlinks if broken (sync)
+        -f        Force overwriting existing files, implies -r (sync, add)
+        -o        Skip backup of existing files (sync)
+        -n        Dry run, don't actually do anything (sync, add)
+        -h        This help
 
 ## FAQs
 
@@ -48,7 +48,7 @@ directory.  This enables linking only files. For example:
     |-- blah
     \-- bin
         \-- nested
-	        \-- foo -> /home/felix/.dotfiles/bin/foo
+	        \-- foo -> ~/.dotfiles/bin/foo
 
 The `nested` and `foo` directories above will be created if need be.
 
