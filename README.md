@@ -48,7 +48,7 @@ directory.  This enables linking only files. For example:
     |-- blah
     \-- bin
         \-- nested
-	        \-- foo -> ~/.dotfiles/bin/foo
+	        \-- foo -> ~/.dotfiles/bin/nested/foo
 
 The `nested` and `foo` directories above will be created if need be.
 
