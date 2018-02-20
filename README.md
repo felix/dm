@@ -40,7 +40,7 @@ help describes below:
 
 Q: What about deeply nested files?
 
-All parent directories that do not exist will be created in your home
+A: All parent directories that do not exist will be created in your home
 directory.  This enables linking only files. For example:
 
 
@@ -51,6 +51,11 @@ directory.  This enables linking only files. For example:
 	        \-- foo -> ~/.dotfiles/bin/nested/foo
 
 The `nested` and `foo` directories above will be created if need be.
+
+Q: How do I clean up old symlinks?
+
+A: Manually. I have not yet had the time/motivation to work out how to see if the
+broken symlink is pointing to a missing file in the dotfiles source.
 
 ## Author
 
