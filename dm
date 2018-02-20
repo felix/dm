@@ -21,16 +21,16 @@ DOTFILES=$(realpath "${DOTFILES%/}")
 
 # Show usage
 usage() {
-    printf "Manage your dotfiles\n"
-    printf "usage: %s [opts] [sync|check|add]\n\n" "$0"
-    printf "Options:\n"
-    printf "\t-q        Be quiet\n"
-    printf "\t-s <path> Set dotfile source path (default: %s)\n" "$DOTFILES"
-    printf "\t-r        Remove existing symlinks if broken (sync)\n"
-    printf "\t-f        Force overwriting existing files, implies -r (sync, add)\n"
-    printf "\t-o        Skip backup of existing files (sync)\n"
-    printf "\t-n        Dry run, don't actually do anything (sync, add)\n"
-    printf "\t-h        This help\n"
+    printf 'Manage your dotfiles\n'
+    printf 'usage: %s [opts] [sync|check|add]\n\n' "$0"
+    printf 'Options:\n'
+    printf '\t-q        Be quiet\n'
+    printf '\t-s <path> Set dotfile source path (default: %s)\n' "$DOTFILES"
+    printf '\t-r        Remove existing symlinks if broken (sync)\n'
+    printf '\t-f        Force overwriting existing files, implies -r (sync, add)\n'
+    printf '\t-o        Skip backup of existing files (sync)\n'
+    printf '\t-n        Dry run, don'\''t actually do anything (sync, add)\n'
+    printf '\t-h        This help\n'
     exit 1
 }
 
@@ -96,7 +96,7 @@ canonicalize_path() {
 ensure_path() {
     directory=$("$dirname" "$1")
     if [ ! -d "$directory" ]; then
-        [ -z "$QUIET" ] && printf "creating path %s\n" "$directory"
+        [ -z "$QUIET" ] && printf 'creating path %s\n' "$directory"
         [ -z "$DRYRUN" ] && mkdir -p "$($dirname "$1")" > /dev/null
     fi
 }
@@ -122,12 +122,12 @@ add() {
 
     # Nothing to copy
     if [ ! -e "$dest" ]; then
-        printf "Cannot find %s\n" "$dest"
+        printf 'Cannot find %s\n' "$dest"
         return 1
     fi
     # Dotfile exists
     if [ -f "$src" ] && [ -z "$FORCE" ]; then
-        printf "%s is already managed\n" "$dest"
+        printf '%s is already managed\n' "$dest"
         return 1
     fi
     # De-reference home version
@@ -174,23 +174,23 @@ process() {
                 srclink="$src"
             fi
             if [ "$destlink" = "$srclink" ]; then
-                [ -z "$QUIET" ] && prinf "keeping %s\n" "$dest"
+                [ -z "$QUIET" ] && prinf 'keeping %s\n' "$dest"
                 return
             fi
 
         elif [ -f "$dest" ]; then
             # Regular file, take a backup
             if [ -z "$OVERWRITE" ] && [ "$ACTION" = "sync" ]; then
-                [ -z "$QUIET" ] && printf "backing up %s\n" "$dest"
+                [ -z "$QUIET" ] && printf 'backing up %s\n' "$dest"
                 backup_file "$dest"
             fi
 
         else
             # Unknown file?!?
-            [ -z "$QUIET" ] && prinf "unknown type %s\n" "$dest"
+            [ -z "$QUIET" ] && prinf 'unknown type %s\n' "$dest"
             return 1
         fi
-        [ -z "$QUIET" ] && printf "removing %s\n" "$dest"
+        [ -z "$QUIET" ] && printf 'removing %s\n' "$dest"
         [ "$ACTION" = "sync" ] && remove_file "$dest"
 
     else
@@ -200,10 +200,10 @@ process() {
 
     case "$ACTION" in
         check)
-            printf "%s\n" "$relative"
+            printf '%s\n' "$relative"
             ;;
         sync)
-            printf "linking %s\n" "$relative"
+            printf 'linking %s\n' "$relative"
             create_link "$src" "$dest"
             ;;
     esac
