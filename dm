@@ -15,10 +15,6 @@ dirname=$(which dirname)
 find=$(which find)
 [ -z "$find" ] && echo "Missing find, cannot continue."
 
-# Default dotfiles path
-DOTFILES="${DOTFILES:-$HOME/.dotfiles}"
-DOTFILES=$(realpath "${DOTFILES%/}")
-
 # Show usage
 usage() {
     printf 'Manage your dotfiles\n'
@@ -209,6 +205,9 @@ process() {
     esac
 }
 
+# Default dotfiles path
+DOTFILES=$(realpath "${DOTFILES:-$HOME/.dotfiles}/")
+
 main() {
     while getopts ":fqdbnrs:" opt; do
         case $opt in
@@ -230,7 +229,7 @@ main() {
     done
 
     # Shift the rest
-    shift "$(($OPTIND - 1))"
+    shift "(($OPTIND - 1))"
 
     ACTION="$1"
 
