@@ -18,14 +18,11 @@ find=$(which find)
 # Show usage
 usage() {
     printf 'Manage your dotfiles\n'
-    printf 'usage: %s [opts] [sync|check|add]\n\n' "$0"
+    printf 'usage: dm [opts] [sync|check|add]\n\n'
     printf 'Options:\n'
-    printf '\t-q        Be quiet\n'
-    printf '\t-s <path> Set dotfile source path (default: %s)\n' "$DOTFILES"
-    printf '\t-r        Remove existing symlinks if broken (sync)\n'
-    printf '\t-f        Force overwriting existing files, implies -r (sync, add)\n'
-    printf '\t-o        Skip backup of existing files (sync)\n'
-    printf '\t-n        Dry run, don'\''t actually do anything (sync, add)\n'
+    printf '\t-v        Be noisy\n'
+    printf '\t-s <path> Specify dotfile path (default: %s)\n' "$DOTFILES"
+    printf '\t-f        Force. Replace symlinks and no backups (sync)\n'
     printf '\t-h        This help\n'
     exit 1
 }
@@ -41,21 +38,28 @@ create_link() {
     fi
     # Symbolic link command
     linkcmd="ln -s"
-    if [ -n "$REPLACE" ] || [ -n "$FORCE" ]; then
+    if [ -n "$FORCE" ]; then
         linkcmd="$linkcmd -f"
     fi
-    [ -z "$DRYRUN" ] && $linkcmd "$src" "$dest"
+    printf 'linking %s\n' "$dest"
+    $linkcmd "$src" "$dest"
 }
 
-remove_file() {
-    dest=$1; shift
-    [ -z "$DRYRUN" ] && rm -f "$dest"
-}
-
-backup_file() {
+ensure_dest() {
     dest=$1; shift
     ts=$(date +%Y%m%dT%H%M%S)
-    [ -z "$DRYRUN" ] && mv "$dest" "$dest.dm-$ts"
+    [ ! -e "$dest" ] && return
+
+    if [ -n "$FORCE" ]; then
+        rm "$dest"
+    else
+        printf 'backing up %s\n' "$dest"
+        r = $(mv "$dest" "$dest.dm-$ts")
+        if [ "$r" -ne 0 ]; then
+            printf 'failed to backup %s\n' "$dest"
+            exit 1
+        fi
+    fi
 }
 
 # Provide a realpath implementation
@@ -92,8 +96,8 @@ canonicalize_path() {
 ensure_path() {
     directory=$("$dirname" "$1")
     if [ ! -d "$directory" ]; then
-        [ -z "$QUIET" ] && printf 'creating path %s\n' "$directory"
-        [ -z "$DRYRUN" ] && mkdir -p "$($dirname "$1")" > /dev/null
+        [ -n "$VERBOSE" ] && printf 'creating path %s\n' "$directory"
+        mkdir -p "$($dirname "$1")" > /dev/null
     fi
 }
 
@@ -122,7 +126,7 @@ add() {
         return 1
     fi
     # Dotfile exists
-    if [ -f "$src" ] && [ -z "$FORCE" ]; then
+    if [ -f "$src" ]; then
         printf '%s is already managed\n' "$dest"
         return 1
     fi
@@ -150,13 +154,8 @@ process() {
     # missing -> link
     # symlink -> relink
     # file -> clear and link (if forced)
-    # link -> clear and link (if replace or forced)
+    # link -> clear and link (if forced)
     if [ -e "$dest" ]; then
-        # Not forced
-        if [ -z "$FORCE" ]; then
-            #[ -z $QUIET] && [ "$ACTION" != "check" ] && printf "skipping %s\n" "$dest"
-            return
-        fi
 
         # Existing symlink
         if [ -h "$dest" ]; then
@@ -170,56 +169,36 @@ process() {
                 srclink="$src"
             fi
             if [ "$destlink" = "$srclink" ]; then
-                [ -z "$QUIET" ] && prinf 'keeping %s\n' "$dest"
-                return
+                [ -n "$VERBOSE" ] && printf 'keeping %s\n' "$dest"
             fi
 
-        elif [ -f "$dest" ]; then
-            # Regular file, take a backup
-            if [ -z "$OVERWRITE" ] && [ "$ACTION" = "sync" ]; then
-                [ -z "$QUIET" ] && printf 'backing up %s\n' "$dest"
-                backup_file "$dest"
-            fi
+        elif [ -f "$dest" ] && [ "$ACTION" = "check" ]; then
+            # Regular file
+            printf "existing %s\n" "$dest"
 
         else
             # Unknown file?!?
-            [ -z "$QUIET" ] && prinf 'unknown type %s\n' "$dest"
+            printf 'unknown type %s\n' "$dest"
             return 1
         fi
-        [ -z "$QUIET" ] && printf 'removing %s\n' "$dest"
-        [ "$ACTION" = "sync" ] && remove_file "$dest"
-
-    else
-        # missing, create path maybe
-        [ "$ACTION" = "sync" ] && ensure_path "$dest"
     fi
 
-    case "$ACTION" in
-        check)
-            printf '%s\n' "$relative"
-            ;;
-        sync)
-            printf 'linking %s\n' "$relative"
+    if [ "$ACTION" = "sync" ]; then
+        ensure_path "$dest" &&
+            ensure_dest "$dest" &&
             create_link "$src" "$dest"
-            ;;
-    esac
+    fi
 }
 
 # Default dotfiles path
 DOTFILES=$(realpath "${DOTFILES:-$HOME/.dotfiles}/")
 
 main() {
-    while getopts ":fqdbnrs:" opt; do
+    while getopts ":vdfs:" opt; do
         case $opt in
+            v) VERBOSE=true
+                ;;
             f) FORCE=true
-                ;;
-            b) OVERWRITE=true
-                ;;
-            n) DRYRUN=true
-                ;;
-            q) QUIET=true
-                ;;
-            r) REPLACE=true
                 ;;
             s) DOTFILES=$OPTARG
                 ;;
@@ -234,11 +213,7 @@ main() {
     ACTION="$1"
 
     case "$ACTION" in
-        check)
-            scan
-            ;;
-        sync|link)
-            ACTION="sync"
+        check|sync)
             scan
             ;;
         add)

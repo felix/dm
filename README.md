@@ -4,13 +4,6 @@ A single-file "dotfile" manager written in POSIX shell. It creates and
 synchronises symlinks in your home directory to a central dotfile
 source.
 
-## Installation
-
-Copy the file to somewhere in your path and ensure it is executable:
-
-    $ curl -L -o ~/bin/ https://git.userspace.com.au/dm/plain/dm
-    $ chmod +x ~/bin/dm
-
 ## Usage
 
 The script expects your dotfiles master to be in `~/.dotfiles` or have the ENV
@@ -28,12 +21,9 @@ Each command has optional flags which modify the default behaviour as the usage
 help describes below:
 
     Options:
-        -q        Be quiet
-        -s <path> Set dotfile source path (default: ~/.dotfiles)
-        -r        Remove existing symlinks if broken (sync)
-        -f        Force overwriting existing files, implies -r (sync, add)
-        -o        Skip backup of existing files (sync)
-        -n        Dry run, don't actually do anything (sync, add)
+        -v        Be noisy
+        -s <path> Specify dotfile path (default: ~/.dotfiles)
+        -f        Force. Replace symlinks and no backups (sync)
         -h        This help
 
 ## FAQs
@@ -60,3 +50,7 @@ broken symlink is pointing to a missing file in the dotfiles source.
 ## Author
 
 Felix Hanley <felix@userspace.com.au>
+
+## License
+
+MIT
