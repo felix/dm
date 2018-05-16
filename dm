@@ -229,7 +229,7 @@ main() {
     done
 
     # Shift the rest
-    shift "(($OPTIND - 1))"
+    shift $(($OPTIND - 1))
 
     ACTION="$1"
 
