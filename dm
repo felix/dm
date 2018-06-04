@@ -8,11 +8,11 @@
 # Author: Felix Hanley <felix@userspace.com.au>
 
 # Some things we need
-readlink=$(which readlink)
+readlink=$(command -v readlink)
 [ -z "$readlink" ] && echo "Missing readlink, cannot continue."
-dirname=$(which dirname)
+dirname=$(command -v dirname)
 [ -z "$dirname" ] && echo "Missing dirname, cannot continue."
-find=$(which find)
+find=$(command -v find)
 [ -z "$find" ] && echo "Missing find, cannot continue."
 
 # Show usage
@@ -32,6 +32,16 @@ create_link() {
     src=$1; shift;
     dest=$1; shift;
 
+    if [ -e "$dest" ] && [ -z "$FORCE" ]; then
+        printf 'backing up %s\n' "$dest"
+        ts=$(date +%Y%m%dT%H%M%S)
+        if ! cp "$dest" "$dest.dm-$ts"; then
+            printf 'failed to backup %s\n' "$dest"
+            exit 1
+        fi
+    fi
+    rm "$dest"
+
     if [ -h "$src" ]; then
         # The dotfile itself is a link, copy it
         src="$HOME/$($readlink -n "$src")"
@@ -45,30 +55,12 @@ create_link() {
     $linkcmd "$src" "$dest"
 }
 
-ensure_dest() {
-    dest=$1; shift
-    ts=$(date +%Y%m%dT%H%M%S)
-    [ ! -e "$dest" ] && return
-
-    if [ -n "$FORCE" ]; then
-        rm "$dest"
-    else
-        printf 'backing up %s\n' "$dest"
-        r = $(mv "$dest" "$dest.dm-$ts")
-        if [ "$r" -ne 0 ]; then
-            printf 'failed to backup %s\n' "$dest"
-            exit 1
-        fi
-    fi
-}
-
 # Provide a realpath implementation
 realpath() {
     canonicalize_path "$(resolve_symlinks "$1")"
 }
 resolve_symlinks() {
-    path=$($readlink -- "$1")
-    if [ $? -eq 0 ]; then
+    if path=$($readlink -- "$1"); then
         dir_context=$($dirname -- "$1")
         resolve_symlinks "$(_prepend_path_if_relative "$dir_context" "$path")"
     else
@@ -170,11 +162,12 @@ process() {
             fi
             if [ "$destlink" = "$srclink" ]; then
                 [ -n "$VERBOSE" ] && printf 'keeping %s\n' "$dest"
+                return 0
             fi
 
         elif [ -f "$dest" ] && [ "$ACTION" = "check" ]; then
             # Regular file
-            printf "existing %s\n" "$dest"
+            printf 'existing %s\n' "$dest"
 
         else
             # Unknown file?!?
@@ -184,9 +177,7 @@ process() {
     fi
 
     if [ "$ACTION" = "sync" ]; then
-        ensure_path "$dest" &&
-            ensure_dest "$dest" &&
-            create_link "$src" "$dest"
+        ensure_path "$dest" && create_link "$src" "$dest"
     fi
 }
 
@@ -208,7 +199,7 @@ main() {
     done
 
     # Shift the rest
-    shift $(($OPTIND - 1))
+    shift $((OPTIND - 1))
 
     ACTION="$1"
 
