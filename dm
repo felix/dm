@@ -27,10 +27,15 @@ fi
 # Show usage
 usage() {
     printf 'Manage your dotfiles\n'
-    printf 'usage: dm [opts] [check|add|clean]\n\n'
+    printf 'usage: dm [opts] [check|add|clean]\n'
+    printf '\n'
+    printf '  add\t\tadd a file to your dotfile repo\n'
+    printf '  check\t\tlist files needing linking (same is -n flag)\n'
+    printf '  clean\t\tlist and prompt to delete broken symlinks\n'
+    printf '\n'
     printf 'Options:\n'
     printf '\t-s <path> Specify dotfile path (default: %s)\n' "$DOTFILES"
-    printf '\t-n        Dry run, no changes (same as check command)\n'
+    printf '\t-n        Dry run. no changes (same as check command)\n'
     printf '\t-f        Force. Replace symlinks and no backups\n'
     printf '\t-h        This help\n'
 }
@@ -80,7 +85,7 @@ create_link() {
 
     [ -z "$DRYRUN" ] && rm "$dest"
 
-    if [ -h "$src" ]; then
+    if [ -L "$src" ]; then
         # The dotfile itself is a link, copy it
         src="$REALHOME/$($readlink -n "$src")"
     fi
@@ -131,7 +136,7 @@ add() {
         return 1
     fi
     # De-reference home version
-    if [ -h "$dest" ]; then
+    if [ -L "$dest" ]; then
         dest=$(realpath "$dest")
     fi
     ensure_path "$src"
@@ -161,13 +166,15 @@ process() {
     fi
 
     # symlink -> relink
-    if [ -h "$dest" ]; then
+    if [ -L "$dest" ]; then
         destlink=$(realpath "$($readlink -n "$dest")")
         srclink=$(realpath "$src")
 
         # Src is also a link
-        if [ -h "$src" ]; then
-            srclink=$(realpath "$($readlink -n "$src")")
+        if [ -L "$src" ]; then
+            # FIXME
+            # Need to determine relative links
+            #srclink=$(realpath "$($readlink -n "$src")")
         fi
 
         if [ "$destlink" != "$srclink" ]; then
