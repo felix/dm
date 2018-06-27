@@ -2,57 +2,37 @@
 
 # Dotfile Manager
 #
-# POSIX shell script to keep a central repo of dotfiles and link them into your
-# home folder.
+# POSIX shell script to keep a central repo of dotfiles
+# and link them into your home folder.
 
 # Author: Felix Hanley <felix@userspace.com.au>
 
 # Some things we need
 readlink=$(command -v readlink)
-[ -z "$readlink" ] && echo "Missing readlink, cannot continue."
+if [ -z "$readlink" ]; then
+   echo "Missing readlink, cannot continue."
+   exit 1
+fi
 dirname=$(command -v dirname)
-[ -z "$dirname" ] && echo "Missing dirname, cannot continue."
+if [ -z "$dirname" ]; then
+    echo "Missing dirname, cannot continue."
+    exit 1
+fi
 find=$(command -v find)
-[ -z "$find" ] && echo "Missing find, cannot continue."
+if [ -z "$find" ]; then
+   echo "Missing find, cannot continue."
+   exit 1
+fi
 
 # Show usage
 usage() {
     printf 'Manage your dotfiles\n'
-    printf 'usage: dm [opts] [sync|check|add]\n\n'
+    printf 'usage: dm [opts] [check|add|clean]\n\n'
     printf 'Options:\n'
-    printf '\t-v        Be noisy\n'
     printf '\t-s <path> Specify dotfile path (default: %s)\n' "$DOTFILES"
-    printf '\t-f        Force. Replace symlinks and no backups (sync)\n'
+    printf '\t-n        Dry run, no changes (same as check command)\n'
+    printf '\t-f        Force. Replace symlinks and no backups\n'
     printf '\t-h        This help\n'
-    exit 1
-}
-
-# Perform the actual link creation
-create_link() {
-    src=$1; shift;
-    dest=$1; shift;
-
-    if [ -e "$dest" ] && [ -z "$FORCE" ]; then
-        printf 'backing up %s\n' "$dest"
-        ts=$(date +%Y%m%dT%H%M%S)
-        if ! cp "$dest" "$dest.dm-$ts"; then
-            printf 'failed to backup %s\n' "$dest"
-            exit 1
-        fi
-    fi
-    rm "$dest"
-
-    if [ -h "$src" ]; then
-        # The dotfile itself is a link, copy it
-        src="$HOME/$($readlink -n "$src")"
-    fi
-    # Symbolic link command
-    linkcmd="ln -s"
-    if [ -n "$FORCE" ]; then
-        linkcmd="$linkcmd -f"
-    fi
-    printf 'linking %s\n' "$dest"
-    $linkcmd "$src" "$dest"
 }
 
 # Provide a realpath implementation
@@ -85,11 +65,39 @@ canonicalize_path() {
     fi
 }
 
+# Perform the actual link creation
+create_link() {
+    src=$1; shift;
+    dest=$1; shift;
+
+    if [ -e "$dest" ] && [ -z "$DRYRUN" ] && [ -n "$BACKUP" ]; then
+        printf 'backing up %s\n' "$dest"
+        if ! cp -f "$dest" "$dest.dm-backup"; then
+            printf 'failed to backup %s\n' "$dest"
+            exit 1
+        fi
+    fi
+
+    [ -z "$DRYRUN" ] && rm "$dest"
+
+    if [ -h "$src" ]; then
+        # The dotfile itself is a link, copy it
+        src="$REALHOME/$($readlink -n "$src")"
+    fi
+    # Symbolic link command
+    linkcmd="ln -s"
+    if [ -z "$BACKUP" ]; then
+        linkcmd="$linkcmd -f"
+    fi
+    printf 'linking %s\n' "$dest"
+    [ -z "$DRYRUN" ] && $linkcmd "$src" "$dest"
+}
+
 ensure_path() {
     directory=$("$dirname" "$1")
     if [ ! -d "$directory" ]; then
-        [ -n "$VERBOSE" ] && printf 'creating path %s\n' "$directory"
-        mkdir -p "$($dirname "$1")" > /dev/null
+        printf 'creating path %s\n' "$directory"
+        [ -z "$DRYRUN" ] && mkdir -p "$($dirname "$1")" > /dev/null
     fi
 }
 
@@ -109,7 +117,7 @@ add() {
     fi
     relative=${file#${DOTFILES}/}
     # Note these are in 'sync' order
-    dest=$HOME/$relative
+    dest=$REALHOME/$relative
     src=$DOTFILES/$relative
 
     # Nothing to copy
@@ -139,61 +147,57 @@ process() {
         return
     fi
     relative=${file#${DOTFILES}/}
-    dest=$HOME/$relative
+    dest=$REALHOME/$relative
     src=$DOTFILES/$relative
 
-    # There are only 4 cases:
+    #printf 'src=%s dest=%s relative=%s\n' "$src" "$dest" "$relative"
+
+    ensure_path "$dest"
+
     # missing -> link
+    if [ ! -e "$dest" ]; then
+        create_link "$src" "$dest"
+        return 0
+    fi
+
     # symlink -> relink
-    # file -> clear and link (if forced)
-    # link -> clear and link (if forced)
-    if [ -e "$dest" ]; then
+    if [ -h "$dest" ]; then
+        destlink=$(realpath "$($readlink -n "$dest")")
+        srclink=$(realpath "$src")
 
-        # Existing symlink
-        if [ -h "$dest" ]; then
-            destlink=$($readlink -n "$dest")
-
-            if [ -h "$src" ]; then
-                # If src is also a link, don't dereference it
-                srclink=$HOME/$($readlink -n "$src")
-            else
-                destlink=$(realpath "$destlink")
-                srclink="$src"
-            fi
-            if [ "$destlink" = "$srclink" ]; then
-                [ -n "$VERBOSE" ] && printf 'keeping %s\n' "$dest"
-                return 0
-            fi
-
-        elif [ -f "$dest" ] && [ "$ACTION" = "check" ]; then
-            # Regular file
-            printf 'existing %s\n' "$dest"
-
-        else
-            # Unknown file?!?
-            printf 'unknown type %s\n' "$dest"
-            return 1
+        # Src is also a link
+        if [ -h "$src" ]; then
+            srclink=$(realpath "$($readlink -n "$src")")
         fi
+
+        if [ "$destlink" != "$srclink" ]; then
+            create_link "$src" "$dest"
+        fi
+        return 0
     fi
 
-    if [ "$ACTION" = "sync" ]; then
-        ensure_path "$dest" && create_link "$src" "$dest"
+    # regular file exists
+    if [ -f "$dest" ]; then
+        create_link "$src" "$dest"
+        return 0
     fi
+
+    printf 'unknown type %s\n' "$dest"
+    return 1
 }
 
-# Default dotfiles path
-DOTFILES=$(realpath "${DOTFILES:-$HOME/.dotfiles}/")
-
 main() {
-    while getopts ":vdfs:" opt; do
+    while getopts ":bns:" opt; do
         case $opt in
-            v) VERBOSE=true
+            b) BACKUP=true
                 ;;
-            f) FORCE=true
+            n) DRYRUN=true
                 ;;
             s) DOTFILES=$OPTARG
                 ;;
-            ?) usage
+            ?)
+                usage
+                exit 0
                 ;;
         esac
     done
@@ -201,22 +205,28 @@ main() {
     # Shift the rest
     shift $((OPTIND - 1))
 
-    ACTION="$1"
+    REALHOME=$(realpath "$HOME")
+    # Default dotfiles path
+    DOTFILES=$(realpath "${DOTFILES:-$REALHOME/.dotfiles}/")
 
-    case "$ACTION" in
-        check|sync)
+    case "$1" in
+        check)
+            DRYRUN=true
             scan
             ;;
         add)
             if [ -z "$2" ]; then
                 echo "Missing required path"
+                usage
                 return 1
             fi
-            shift
-            add "$1"
+            add "$2"
+            ;;
+        clean)
+            $find "$REALHOME" -type l -exec test ! -e '{}' \; -exec rm -i '{}' \;
             ;;
         *)
-            usage
+            scan
             ;;
     esac
     return $?
