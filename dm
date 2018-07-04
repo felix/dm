@@ -171,11 +171,11 @@ process() {
         srclink=$(realpath "$src")
 
         # Src is also a link
-        if [ -L "$src" ]; then
-            # FIXME
-            # Need to determine relative links
-            #srclink=$(realpath "$($readlink -n "$src")")
-        fi
+#        if [ -L "$src" ]; then
+#            # FIXME
+#            # Need to determine relative links
+#            srclink=$(realpath "$($readlink -n "$src")")
+#        fi
 
         if [ "$destlink" != "$srclink" ]; then
             create_link "$src" "$dest"
