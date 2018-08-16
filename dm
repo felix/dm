@@ -83,7 +83,7 @@ create_link() {
         fi
     fi
 
-    [ -z "$DRYRUN" ] && rm "$dest"
+    [ -z "$DRYRUN" ] && [ -f "$dest" ] && rm "$dest"
 
     if [ -L "$src" ]; then
         # The dotfile itself is a link, copy it
