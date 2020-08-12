@@ -39,6 +39,7 @@ usage() {
 	printf '  add\t\tadd a file to your dotfile repo\n'
 	printf '  check\t\tlist files needing linking (same is -n flag)\n'
 	printf '  clean\t\tlist and prompt to delete broken symlinks\n'
+	printf '  pull\t\tpull dotfiles from git\n'
 	printf '\n'
 	printf 'Options:\n'
 	printf '\t-s <path> Specify dotfile path (default: %s)\n' "$DOTFILES"
@@ -112,7 +113,7 @@ ensure_path() {
 scan() {
 	# Each file and link in DOTFILES, excluding VCS
 	# TODO enable configurable excludes
-	filelist=$(find "$DOTFILES" \( -name .git -o -name .hg \) -prune -o \( -type f -print \) -o \( -type l -print \))
+	filelist=$(find "$DOTFILES" \( -name .git -o -name .hg -o -name '*.__*' \) -prune -o \( -type f -print \) -o \( -type l -print \))
 	for file in $filelist; do
 		process "$file"
 	done
@@ -128,23 +129,23 @@ add() {
 	dest=$REALHOME/$relative
 	src=$DOTFILES/$relative
 
-    # Nothing to copy
-    if [ ! -e "$dest" ]; then
-	    printf 'Cannot find %s\n' "$dest"
-	    return 1
-    fi
-    # Dotfile exists
-    if [ -f "$src" ]; then
-	    printf '%s is already managed\n' "$dest"
-	    return 1
-    fi
-    # De-reference home version
-    if [ -L "$dest" ]; then
-	    dest=$(realpath "$dest")
-    fi
-    ensure_path "$src"
-    mv "$dest" "$src" && create_link "$src" "$dest"
-    return $?
+	# Nothing to copy
+	if [ ! -e "$dest" ]; then
+		printf 'Cannot find %s\n' "$dest"
+		return 1
+	fi
+	# Dotfile exists
+	if [ -f "$src" ]; then
+		printf '%s is already managed\n' "$dest"
+		return 1
+	fi
+	# De-reference home version
+	if [ -L "$dest" ]; then
+		dest=$(realpath "$dest")
+	fi
+	ensure_path "$src"
+	mv "$dest" "$src" && create_link "$src" "$dest"
+	return $?
 }
 
 # Updates a link from the dotfiles src to the home directory
@@ -157,43 +158,47 @@ process() {
 	relative=${file#${DOTFILES}/}
 	dest=$REALHOME/$relative
 	src=$DOTFILES/$relative
-
-    #printf 'src=%s dest=%s relative=%s\n' "$src" "$dest" "$relative"
-
-    ensure_path "$dest"
-
-    # missing -> link
-    if [ ! -e "$dest" ]; then
-	    create_link "$src" "$dest"
-	    return 0
-    fi
-
-    # symlink -> relink
-    if [ -L "$dest" ]; then
-	    destlink=$(realpath "$($readlink -n "$dest")")
-	    srclink=$(realpath "$src")
-
-	# Src is also a link
-	#        if [ -L "$src" ]; then
-	#            # FIXME
-	#            # Need to determine relative links
-	#            srclink=$(realpath "$($readlink -n "$src")")
-	#        fi
-
-	if [ "$destlink" != "$srclink" ]; then
-		create_link "$src" "$dest"
+	# check for host specific version
+	hostn="$(hostname |cut -d. -f1)"
+	if [ -f "$src.__$hostn" ]; then
+		src="$src.__$hostn"
+		printf 'using host version %s\n' "$src"
 	fi
-	return 0
-    fi
 
-    # regular file exists
-    if [ -f "$dest" ]; then
-	    create_link "$src" "$dest"
-	    return 0
-    fi
+	#printf 'src=%s dest=%s relative=%s\n' "$src" "$dest" "$relative"
 
-    printf 'unknown type %s\n' "$dest"
-    return 1
+	ensure_path "$dest"
+
+	# missing -> link
+	if [ ! -e "$dest" ]; then
+		create_link "$src" "$dest"
+		return 0
+	fi
+
+	# symlink -> relink
+	if [ -L "$dest" ]; then
+		destlink=$(realpath "$($readlink -n "$dest")")
+		srclink=$(realpath "$src")
+		# Src is also a link
+		# if [ -L "$src" ]; then
+		# FIXME
+		# Need to determine relative links
+		# srclink=$(realpath "$($readlink -n "$src")")
+		# fi
+		if [ "$destlink" != "$srclink" ]; then
+			create_link "$src" "$dest"
+		fi
+		return 0
+	fi
+
+	# regular file exists
+	if [ -f "$dest" ]; then
+		create_link "$src" "$dest"
+		return 0
+	fi
+
+	printf 'unknown type %s\n' "$dest"
+	return 1
 }
 
 main() {
@@ -209,34 +214,41 @@ main() {
 		esac
 	done
 
-    # Shift the rest
-    shift $((OPTIND - 1))
+	# Shift the rest
+	shift $((OPTIND - 1))
 
-    REALHOME=$(realpath "$HOME")
-    # Default dotfiles path
-    DOTFILES=$(realpath "${DOTFILES:-$REALHOME/.dotfiles}/")
+	REALHOME=$(realpath "$HOME")
+	# Default dotfiles path
+	DOTFILES=$(realpath "${DOTFILES:-$REALHOME/.dotfiles}/")
 
-    case "$1" in
-	    check)
-		    DRYRUN=true
-		    scan
-		    ;;
-	    add)
-		    if [ -z "$2" ]; then
-			    echo "Missing required path"
-			    usage
-			    return 1
-		    fi
-		    add "$2"
-		    ;;
-	    clean)
-		    $find "$REALHOME" -type l -exec test ! -e '{}' \; -exec rm -i '{}' \;
-		    ;;
-	    *)
-		    scan
-		    ;;
-    esac
-    return $?
+	case "$1" in
+		check)
+			DRYRUN=true
+			scan
+			;;
+		add)
+			if [ -z "$2" ]; then
+				echo "Missing required path"
+				usage
+				return 1
+			fi
+			add "$2"
+			;;
+		clean)
+			$find "$REALHOME" -type l -exec test ! -e '{}' \; -exec rm -i '{}' \;
+			;;
+		pull)
+			oldpwd=$PWD
+			cd $DOTFILES && git pull
+			cd $oldpwd
+			;;
+		*)
+			scan
+			;;
+	esac
+	return $?
 }
 
 main "$@"
+
+# vim: ft=sh
