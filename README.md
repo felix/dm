@@ -31,21 +31,37 @@ help describes below:
 Q: What about deeply nested files?
 
 A: All parent directories that do not exist will be created in your home
-directory.  This enables linking only files. For example:
+directory. This enables linking only files. For example:
 
 
     ~
     |-- blah
     \-- bin
         \-- nested
-	        \-- foo -> ~/.dotfiles/bin/nested/foo
+            \-- foo -> ~/.dotfiles/bin/nested/foo
 
 The `nested` and `foo` directories above will be created if need be.
 
 Q: How do I clean up old symlinks?
 
-A: Manually. I have not yet had the time/motivation to work out how to see if the
-broken symlink is pointing to a missing file in the dotfiles source.
+A: Manually. I have not yet had the time/motivation to work out how to see if
+the broken symlink is pointing to a missing file in the dotfiles source.
+
+Q: What about host specific files?
+
+A: By creating a file in your dotfiles with the suffix `.__$(hostname -s)` then
+dm will use it in place of the general version. To exclude a file for a
+particular host then append yet another suffix of `!` like this (for the host
+"acme"):
+
+
+    ~
+    |-- blah
+    \-- bin
+        |-- somefile
+        |-- somefile.__acme -> ~/.dotfiles/bin/somefile
+        |-- anotherfile
+        \-- anotherfile.__acme!
 
 ## Author
 

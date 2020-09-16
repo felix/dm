@@ -30,6 +30,7 @@ if [ -z "$realpath" ]; then
 		canonicalize_path "$(resolve_symlinks "$1")"
 	}
 fi
+hostn="$(hostname |cut -d. -f1)"
 
 # Show usage
 usage() {
@@ -74,20 +75,30 @@ canonicalize_path() {
 	fi
 }
 
+backup() {
+	[ ! -e "$1" ] && return
+	printf 'backing up %s\n' "$1"
+	[ -n "$DRYRUN" ] && return
+	if ! cp -f "$1" "$1.dm-backup"; then
+		printf 'failed to backup %s\n' "$1"
+		exit 1
+	fi
+}
+
+remove() {
+	[ -z "$DRYRUN" ] && [ -f "$1" ] && rm "$1"
+}
+
 # Perform the actual link creation
 create_link() {
 	src=$1; shift;
 	dest=$1; shift;
 
-	if [ -e "$dest" ] && [ -z "$DRYRUN" ] && [ -n "$BACKUP" ]; then
-		printf 'backing up %s\n' "$dest"
-		if ! cp -f "$dest" "$dest.dm-backup"; then
-			printf 'failed to backup %s\n' "$dest"
-			exit 1
-		fi
+	if [ -e "$dest" ] && [ -n "$BACKUP" ]; then
+		backup "$dest"
 	fi
 
-	[ -z "$DRYRUN" ] && [ -f "$dest" ] && rm "$dest"
+	remove "$dest"
 
 	if [ -L "$src" ]; then
 		# The dotfile itself is a link, copy it
@@ -113,7 +124,7 @@ ensure_path() {
 scan() {
 	# Each file and link in DOTFILES, excluding VCS
 	# TODO enable configurable excludes
-	filelist=$(find "$DOTFILES" \( -name .git -o -name .hg -o -name '*.__*' \) -prune -o \( -type f -print \) -o \( -type l -print \))
+	filelist=$(find "$DOTFILES" \( -name .git -o -name .hg -o -name '*.swp' -o -name '*.__*' \) -prune -o \( -type f -print \) -o \( -type l -print \))
 	for file in $filelist; do
 		process "$file"
 	done
@@ -158,11 +169,14 @@ process() {
 	relative=${file#${DOTFILES}/}
 	dest=$REALHOME/$relative
 	src=$DOTFILES/$relative
+
 	# check for host specific version
-	hostn="$(hostname |cut -d. -f1)"
+	if [ -f "$src.__$hostn!" ]; then
+		backup "$dest" && remove "$dest"
+		return
+	fi
 	if [ -f "$src.__$hostn" ]; then
 		src="$src.__$hostn"
-		printf 'using host version %s\n' "$src"
 	fi
 
 	#printf 'src=%s dest=%s relative=%s\n' "$src" "$dest" "$relative"
